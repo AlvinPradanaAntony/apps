@@ -2,6 +2,21 @@
 
 Semua perubahan penting pada proyek ini akan dicatat dalam file ini.
 
+## [1.1.0] - 2026-04-02
+
+### Ditambahkan
+
+- Migrasi antarmuka pengguna secara penuh dari `Tkinter` ke `PySide6` untuk tampilan yang lebih modern, dinamis, dan responsif.
+- Implementasi overlay dialog dengan efek blur latar belakang dan transisi mulus (`ErrorOverlayDialog`, dll).
+- Otomatisasi proses rilis CI/CD menggunakan GitHub Actions untuk Windows (.exe, Setup.exe), Linux (.AppImage, .deb), dan macOS (.dmg).
+- Sistem styling UI tersentralisasi menggunakan Qt Style Sheets.
+
+### Diperbarui
+
+- Pengoptimalan asinkron background scanning.
+- Penanganan error aplikasi secara keseluruhan (SafeApplication) yang menangkap *uncaught exceptions* dengan bersih.
+- Pengunaan `send2trash` tetap dipertahankan untuk keamanan penghapusan file.
+
 ## [1.0.1] - 2026-04-02
 
 ### Ditambahkan
