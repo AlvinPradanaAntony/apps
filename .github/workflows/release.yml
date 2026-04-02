@@ -3,89 +3,209 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
-  build:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            artifact_name: FolderCompareDeleteApp
-            asset_name: FolderCompareDeleteApp-Windows.exe
-          - os: ubuntu-latest
-            artifact_name: FolderCompareDeleteApp
-            asset_name: FolderCompareDeleteApp-Linux
-          - os: macos-latest
-            artifact_name: FolderCompareDeleteApp
-            asset_name: FolderCompareDeleteApp-macOS
-
+  build-windows:
+    name: Build Windows (EXE, Setup)
+    runs-on: windows-latest
     steps:
-    - name: Check out repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11' # Set to your desired Python version
+      - name: Install PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller send2trash openpyxl
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller send2trash openpyxl
+      - name: Build Portable EXE
+        run: |
+          pyinstaller --noconfirm --onefile --windowed --name "FolderCompare" folder_compare_delete_app.py
 
-    - name: Build with PyInstaller
-      run: |
-        pyinstaller --onefile --windowed --name ${{ matrix.artifact_name }} folder_compare_delete_app.py
+      - name: Generate InnoSetup Script
+        run: |
+          $SetupScript = @"
+          [Setup]
+          AppName=Folder Compare Delete
+          AppVersion=${{ github.ref_name }}
+          DefaultDirName={autopf}\FolderCompare
+          OutputDir=installer
+          OutputBaseFilename=FolderCompare-Windows-Setup
+          Compression=lzma
+          SolidCompression=yes
+          UninstallDisplayIcon={app}\FolderCompare.exe
+          
+          [Files]
+          Source: "dist\FolderCompare.exe"; DestDir: "{app}"; Flags: ignoreversion
+          
+          [Icons]
+          Name: "{autoprograms}\Folder Compare Delete"; Filename: "{app}\FolderCompare.exe"
+          Name: "{commondesktop}\Folder Compare Delete"; Filename: "{app}\FolderCompare.exe"; Tasks: desktopicon
+          
+          [Tasks]
+          Name: "desktopicon"; Description: "Create a &desktop icon"; GroupDescription: "Additional icons:"; Flags: unchecked
+          "@
+          Set-Content -Path setup.iss -Value $SetupScript
 
-    - name: Rename asset for Linux/macOS
-      if: matrix.os != 'windows-latest'
-      run: |
-        mv dist/${{ matrix.artifact_name }} dist/${{ matrix.asset_name }}
+      - name: Compile Windows Installer
+        run: iscc setup.iss
 
-    - name: Rename asset for Windows
-      if: matrix.os == 'windows-latest'
-      run: |
-        move dist\${{ matrix.artifact_name }}.exe dist\${{ matrix.asset_name }}
+      - name: Upload Windows Portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: FolderCompare-Windows-Portable.exe
+          path: dist/FolderCompare.exe
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.asset_name }}
-        path: dist/${{ matrix.asset_name }}
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: FolderCompare-Windows-Setup.exe
+          path: installer/FolderCompare-Windows-Setup.exe
+
+  build-linux:
+    name: Build Linux (AppImage, deb, tar.gz)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller send2trash openpyxl
+
+      - name: Build Linux Binary
+        run: |
+          pyinstaller --noconfirm --onefile --windowed --name "FolderCompare" folder_compare_delete_app.py
+
+      - name: Package .deb using fpm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev rubygems build-essential
+          sudo gem install --no-document fpm
+          mkdir -p package/usr/bin package/usr/share/applications package/usr/share/icons/hicolor/scalable/apps
+          cp dist/FolderCompare package/usr/bin/
+          # Create fake Desktop entry
+          echo "[Desktop Entry]" > package/usr/share/applications/foldercompare.desktop
+          echo "Name=Folder Compare" >> package/usr/share/applications/foldercompare.desktop
+          echo "Exec=FolderCompare" >> package/usr/share/applications/foldercompare.desktop
+          echo "Icon=foldercompare" >> package/usr/share/applications/foldercompare.desktop
+          echo "Type=Application" >> package/usr/share/applications/foldercompare.desktop
+          echo "Categories=Utility;" >> package/usr/share/applications/foldercompare.desktop
+          # Create an empty icon to satisfy the desktop file
+          touch package/usr/share/icons/hicolor/scalable/apps/foldercompare.svg
+          fpm -s dir -t deb -n foldercompare -v ${GITHUB_REF_NAME#v} -a amd64 --description "Folder Compare and Delete Utility" -C package usr
+
+      - name: Package AppImage
+        run: |
+          wget -c https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          ./appimagetool-x86_64.AppImage --appimage-extract
+          mkdir -p AppDir/usr/bin
+          cp dist/FolderCompare AppDir/usr/bin/
+          # AppRun execution wrapper
+          cat > AppDir/AppRun << 'EOF'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          exec "${HERE}/usr/bin/FolderCompare" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+          cp package/usr/share/applications/foldercompare.desktop AppDir/
+          touch AppDir/foldercompare.svg
+          # Use extracted AppImage tool to avoid FUSE issues on GitHub actions
+          ARCH=x86_64 ./squashfs-root/AppRun AppDir FolderCompare-Linux-x86_64.AppImage
+
+      - name: Package tar.gz
+        run: |
+          cd dist
+          mv FolderCompare FolderCompare-Linux
+          tar -czvf ../FolderCompare-Linux-amd64.tar.gz FolderCompare-Linux
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: FolderCompare-Linux-amd64.deb
+          path: foldercompare*.deb
+
+      - name: Upload .AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: FolderCompare-Linux-x86_64.AppImage
+          path: FolderCompare-Linux-x86_64.AppImage
+
+      - name: Upload .tar.gz
+        uses: actions/upload-artifact@v4
+        with:
+          name: FolderCompare-Linux-amd64.tar.gz
+          path: FolderCompare-Linux-amd64.tar.gz
+
+  build-macos:
+    name: Build macOS (.app.tar.gz, .dmg)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller send2trash openpyxl
+
+      - name: Build macOS App
+        run: |
+          pyinstaller --noconfirm --onefile --windowed --name "FolderCompare" folder_compare_delete_app.py
+
+      - name: Package DMG
+        run: |
+          mkdir -p dmg_root
+          cp -r dist/FolderCompare.app dmg_root/
+          ln -s /Applications dmg_root/Applications
+          hdiutil create -volname "FolderCompare" -srcfolder dmg_root -ov -format UDZO FolderCompare-macOS-universal.dmg
+
+      - name: Package tar.gz
+        run: |
+          cd dist
+          tar -czvf ../FolderCompare-macOS.app.tar.gz FolderCompare.app
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: FolderCompare-macOS-universal.dmg
+          path: FolderCompare-macOS-universal.dmg
+
+      - name: Upload tar.gz
+        uses: actions/upload-artifact@v4
+        with:
+          name: FolderCompare-macOS.app.tar.gz
+          path: FolderCompare-macOS.app.tar.gz
 
   release:
-    name: Create Release
-    needs: build
+    name: Publish Release
+    needs: [build-windows, build-linux, build-macos]
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-    - name: Check out repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
 
-    - name: Display structure of downloaded files
-      run: ls -R artifacts
+      - name: Make Changelog target
+        run: cat CHANGELOG.md > full_changelog.md
 
-    - name: Extract full changelog
-      run: cat CHANGELOG.md > full_changelog.md
-
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: ${{ github.ref_name }}
-        name: Release ${{ github.ref_name }}
-        body_path: full_changelog.md
-        files: |
-          artifacts/FolderCompareDeleteApp-Windows.exe/FolderCompareDeleteApp-Windows.exe
-          artifacts/FolderCompareDeleteApp-Linux/FolderCompareDeleteApp-Linux
-          artifacts/FolderCompareDeleteApp-macOS/FolderCompareDeleteApp-macOS
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body_path: full_changelog.md
+          files: |
+            artifacts/*
