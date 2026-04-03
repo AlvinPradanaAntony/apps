@@ -2,7 +2,7 @@
 
 Semua perubahan penting pada proyek ini akan dicatat dalam file ini.
 
-## [1.1.0] - 2026-04-02
+## [2.0.0] - 2026-04-02
 
 ### Ditambahkan
 
