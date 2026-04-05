@@ -24,7 +24,7 @@ jobs:
 
       - name: Build Portable EXE
         run: |
-          pyinstaller --noconfirm --onefile --windowed --name "FolderCompare" folder_compare_delete_app.py
+          pyinstaller --noconfirm --onefile --windowed --add-data "assets;assets" --name "FolderCompare" folder_compare_delete_app.py
 
       - name: Generate InnoSetup Script
         run: |
@@ -81,7 +81,7 @@ jobs:
 
       - name: Build Linux Binary
         run: |
-          pyinstaller --noconfirm --onefile --windowed --name "FolderCompare" folder_compare_delete_app.py
+          pyinstaller --noconfirm --onefile --windowed --add-data "assets:assets" --name "FolderCompare" folder_compare_delete_app.py
 
       - name: Package .deb using fpm
         run: |
@@ -159,7 +159,7 @@ jobs:
 
       - name: Build macOS App
         run: |
-          pyinstaller --noconfirm --onefile --windowed --name "FolderCompare" folder_compare_delete_app.py
+          pyinstaller --noconfirm --onefile --windowed --add-data "assets:assets" --name "FolderCompare" folder_compare_delete_app.py
 
       - name: Package DMG
         run: |
