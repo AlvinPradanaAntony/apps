@@ -6246,10 +6246,8 @@ class FolderCompareDeleteApp(QMainWindow):
                                         target_path = sys.executable if is_frozen else os.path.abspath(sys.argv[0])
                                     
                                     # Hapus environment variable yg berhubungan dgn PyInstaller agar app baru tidak error DLL
-                                    env = os.environ.copy()
-                                    env.pop("_MEIPASS", None)
-                                    env.pop("_MEIPASS2", None)
-                                    env.pop("_PYIBoot_SPLASH", None)
+                                    # Dictionary comprehension agar _MEIPASS terhapus tanpa peduli case-sensitive (huruf besar/kecil)
+                                    env = {k: v for k, v in os.environ.items() if not k.upper().startswith(("_MEI", "_PYI"))}
 
                                     if system == "windows":
                                         bat_path = os.path.join(tempfile.gettempdir(), "updater.bat")
@@ -6257,8 +6255,11 @@ class FolderCompareDeleteApp(QMainWindow):
                                             f.write('@echo off\n')
                                             f.write('set _MEIPASS=\n')
                                             f.write('set _MEIPASS2=\n')
-                                            f.write('timeout /t 2 /nobreak > NUL\n')
+                                            f.write('set _PYIBoot_SPLASH=\n')
+                                            f.write(':retry\n')
+                                            f.write('timeout /t 1 /nobreak > NUL\n')
                                             f.write(f'move /Y "{downloaded_path}" "{target_path}"\n')
+                                            f.write('if errorlevel 1 goto retry\n')
                                             if is_frozen:
                                                 f.write(f'start "" "{target_path}"\n')
                                             else:
@@ -6269,18 +6270,16 @@ class FolderCompareDeleteApp(QMainWindow):
                                         sh_path = os.path.join(tempfile.gettempdir(), "updater.sh")
                                         with open(sh_path, "w") as f:
                                             f.write('#!/bin/bash\n')
-                                            f.write('unset _MEIPASS _MEIPASS2 _PYIBoot_SPLASH\n')
-                                            f.write('sleep 2\n')
+                                            f.write('for var in $(compgen -v | grep -E "^_MEI|^_PYI"); do unset "$var"; done\n')
+                                            
+                                            f.write(f'while true; do mv -f "{downloaded_path}" "{target_path}" && break; sleep 1; done\n')
+                                            f.write(f'chmod +x "{target_path}"\n')
                                             
                                             if system == "darwin" and target_path.endswith("/MacOS/FolderCompare"):
-                                                # Overwrite seluruh .app bundle di parent folder jika Mac OS App Bundle
+                                                # Jalankan via OSX open command tapi kita modifikasi isinya dengan single binary pengganti
                                                 bundle_path = os.path.abspath(os.path.join(target_path, "../../.."))
-                                                f.write(f'mv -f "{downloaded_path}" "{bundle_path}"\n')
-                                                f.write(f'chmod -R +x "{bundle_path}"\n')
                                                 f.write(f'nohup open "{bundle_path}" >/dev/null 2>&1 &\n')
                                             else:
-                                                f.write(f'mv -f "{downloaded_path}" "{target_path}"\n')
-                                                f.write(f'chmod +x "{target_path}"\n')
                                                 if is_frozen:
                                                     f.write(f'nohup "{target_path}" >/dev/null 2>&1 &\n')
                                                 else:
