@@ -57,7 +57,7 @@ except ImportError as exc:
 
 
 APP_TITLE = "Folder Compare & Delete"
-APP_VERSION = "2.4.1"
+APP_VERSION = "2.4.2"
 APP_DEVELOPER = "Tonzdev"
 CHUNK_SIZE = 1024 * 1024  # 1 MB
 BG_COLOR = "#f4f7fb"
@@ -6243,10 +6243,18 @@ class FolderCompareDeleteApp(QMainWindow):
                                     else:
                                         target_path = sys.executable if is_frozen else os.path.abspath(sys.argv[0])
                                     
+                                    # Hapus environment variable yg berhubungan dgn PyInstaller agar app baru tidak error DLL
+                                    env = os.environ.copy()
+                                    env.pop("_MEIPASS", None)
+                                    env.pop("_MEIPASS2", None)
+                                    env.pop("_PYIBoot_SPLASH", None)
+
                                     if system == "windows":
                                         bat_path = os.path.join(tempfile.gettempdir(), "updater.bat")
                                         with open(bat_path, "w") as f:
                                             f.write('@echo off\n')
+                                            f.write('set _MEIPASS=\n')
+                                            f.write('set _MEIPASS2=\n')
                                             f.write('timeout /t 2 /nobreak > NUL\n')
                                             f.write(f'move /Y "{downloaded_path}" "{target_path}"\n')
                                             if is_frozen:
@@ -6254,11 +6262,12 @@ class FolderCompareDeleteApp(QMainWindow):
                                             else:
                                                 f.write(f'start "" "{sys.executable}" "{target_path}"\n')
                                             f.write('del "%~f0"\n')
-                                        subprocess.Popen([bat_path], shell=True)
+                                        subprocess.Popen([bat_path], shell=True, env=env)
                                     else:
                                         sh_path = os.path.join(tempfile.gettempdir(), "updater.sh")
                                         with open(sh_path, "w") as f:
                                             f.write('#!/bin/bash\n')
+                                            f.write('unset _MEIPASS _MEIPASS2 _PYIBoot_SPLASH\n')
                                             f.write('sleep 2\n')
                                             
                                             if system == "darwin" and target_path.endswith("/MacOS/FolderCompare"):
@@ -6276,7 +6285,7 @@ class FolderCompareDeleteApp(QMainWindow):
                                                     f.write(f'nohup "{sys.executable}" "{target_path}" >/dev/null 2>&1 &\n')
                                             f.write('rm -f "$0"\n')
                                         os.chmod(sh_path, 0o755)
-                                        subprocess.Popen([sh_path], shell=False, start_new_session=True)
+                                        subprocess.Popen([sh_path], shell=False, start_new_session=True, env=env)
                                     sys.exit(0)
                             except Exception as e:
                                 QMessageBox.critical(self, "Gagal", f"Gagal menjalankan pembaruan:\n\n{e}")

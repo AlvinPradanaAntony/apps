@@ -2,6 +2,12 @@
 
 Semua perubahan penting pada proyek ini akan dicatat dalam file ini.
 
+## [2.4.2] - 2026-04-09
+
+### Diperbaiki
+
+- Memperbaiki isu kegagalan _restart_ aplikasi pad platform Windows, Linux, dan macOS setelah update sukses akibat konflik environment variables PyInstaller (`_MEIPASS`, `_PYIBoot_SPLASH`) yang tersisa.
+
 ## [2.4.1] - 2026-04-09
 
 ### Diperbarui
