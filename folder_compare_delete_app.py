@@ -2136,25 +2136,25 @@ class UpdateStatusDialog(QDialog):
         header_row = QHBoxLayout()
         header_row.setSpacing(14)
         
-        icon_badge = QLabel("🎉" if has_update else "✨")
-        icon_badge.setObjectName("OverlayIcon")
-        icon_badge.setAlignment(Qt.AlignCenter)
-        icon_badge.setFixedSize(56, 56)
+        self.icon_badge = QLabel("🎉" if has_update else "✨")
+        self.icon_badge.setObjectName("OverlayIcon")
+        self.icon_badge.setAlignment(Qt.AlignCenter)
+        self.icon_badge.setFixedSize(56, 56)
 
         title_wrap = QVBoxLayout()
         title_wrap.setSpacing(4)
         
-        title_label = QLabel(f"Pembaruan Tersedia: v{latest_version}" if has_update else f"Aplikasi Terkini (v{current_version})")
-        title_label.setObjectName("OverlayTitle")
-        title_label.setWordWrap(True)
+        self.title_label = QLabel(f"Pembaruan Tersedia: v{latest_version}" if has_update else f"Aplikasi Terkini (v{current_version})")
+        self.title_label.setObjectName("OverlayTitle")
+        self.title_label.setWordWrap(True)
 
-        summary_label = QLabel(f"Versi saat ini v{current_version}. Pembaruan baru tersedia untuk diunduh." if has_update else "Anda sudah menggunakan aplikasi versi terbaru.")
-        summary_label.setObjectName("OverlaySummary")
-        summary_label.setWordWrap(True)
+        self.summary_label = QLabel(f"Versi saat ini v{current_version}. Pembaruan baru tersedia untuk diunduh." if has_update else "Anda sudah menggunakan aplikasi versi terbaru.")
+        self.summary_label.setObjectName("OverlaySummary")
+        self.summary_label.setWordWrap(True)
 
-        title_wrap.addWidget(title_label)
-        title_wrap.addWidget(summary_label)
-        header_row.addWidget(icon_badge, 0, Qt.AlignTop)
+        title_wrap.addWidget(self.title_label)
+        title_wrap.addWidget(self.summary_label)
+        header_row.addWidget(self.icon_badge, 0, Qt.AlignTop)
         header_row.addLayout(title_wrap, 1)
 
         card_layout.addLayout(header_row)
@@ -2221,6 +2221,14 @@ class UpdateStatusDialog(QDialog):
                 border: 1px solid #c7d8f9;
                 border-radius: 24px;
             }}
+            QFrame#OverlayCard[successMode="true"] {{
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 1,
+                    stop: 0 #ffffff,
+                    stop: 1 #f4fdf8
+                );
+                border: 1px solid #c3edd3;
+            }}
             QLabel#OverlayIcon {{
                 background: qlineargradient(
                     x1: 0, y1: 0, x2: 1, y2: 1,
@@ -2230,6 +2238,13 @@ class UpdateStatusDialog(QDialog):
                 color: white;
                 border-radius: 28px;
                 font: 800 16pt "Segoe UI";
+            }}
+            QLabel#OverlayIcon[successMode="true"] {{
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 1,
+                    stop: 0 #1b8a4f,
+                    stop: 1 #22c366
+                );
             }}
             QLabel#OverlayTitle {{
                 color: {TEXT};
@@ -2253,6 +2268,11 @@ class UpdateStatusDialog(QDialog):
                 font: 9.5pt "Segoe UI";
                 selection-background-color: #dce8ff;
             }}
+            QTextBrowser#OverlayDetails[successMode="true"] {{
+                background: #f4fff8;
+                border: 1px solid #b7ecd0;
+                selection-background-color: #c8f5dc;
+            }}
             QPushButton#OverlayPrimaryButton {{
                 min-width: 130px;
                 padding: 10px 18px;
@@ -2266,11 +2286,25 @@ class UpdateStatusDialog(QDialog):
                 color: white;
                 font: 700 10pt "Segoe UI";
             }}
+            QPushButton#OverlayPrimaryButton[successMode="true"] {{
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 1,
+                    stop: 0 #169352,
+                    stop: 1 #25d26f
+                );
+            }}
             QPushButton#OverlayPrimaryButton:hover {{
                 background: qlineargradient(
                     x1: 0, y1: 0, x2: 1, y2: 1,
                     stop: 0 #174ce6,
                     stop: 1 #2b61df
+                );
+            }}
+            QPushButton#OverlayPrimaryButton[successMode="true"]:hover {{
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 1,
+                    stop: 0 #147f47,
+                    stop: 1 #1fb861
                 );
             }}
             QPushButton#OverlaySecondaryButton {{
@@ -2282,8 +2316,15 @@ class UpdateStatusDialog(QDialog):
                 color: {TEXT};
                 font: 600 10pt "Segoe UI";
             }}
+            QPushButton#OverlaySecondaryButton[successMode="true"] {{
+                border: 1px solid #bceccf;
+                color: #0f6c3a;
+            }}
             QPushButton#OverlaySecondaryButton:hover {{
                 background: #f0f4fc;
+            }}
+            QPushButton#OverlaySecondaryButton[successMode="true"]:hover {{
+                background: #eaffee;
             }}
             """
         )
@@ -2402,6 +2443,10 @@ class UpdateStatusDialog(QDialog):
 
 
 class UpdateDownloadDialog(QDialog):
+    progress_updated = Signal(int, str)
+    download_error = Signal(str)
+    download_finished = Signal(bool)
+
     def __init__(self, parent, target_version: str, download_url: str):
         super().__init__(parent)
         self._blur_target = parent.centralWidget() if isinstance(parent, QMainWindow) else parent
@@ -2494,6 +2539,10 @@ class UpdateDownloadDialog(QDialog):
         outer.addWidget(overlay)
 
         self._apply_stylesheet()
+        
+        self.progress_updated.connect(self._update_progress)
+        self.download_finished.connect(self._finish_download)
+        self.download_error.connect(self._handle_error)
 
     def _apply_stylesheet(self) -> None:
         self.setStyleSheet(
@@ -2689,12 +2738,21 @@ class UpdateDownloadDialog(QDialog):
     def start_download(self):
         import tempfile
         import sys
+        import os
+        import urllib.parse
+        from uuid import uuid4
         
-        self.dest_path = os.path.join(tempfile.gettempdir(), f"update_v{self.target_version}_{uuid4().hex[:8]}")
-        is_exe = sys.executable.lower().endswith(f"{os.sep}folder_compare_delete_app.exe") or getattr(sys, 'frozen', False)
-        ext = ".exe" if is_exe else ".py"
-        if not self.dest_path.endswith(ext):
-            self.dest_path += ext
+        parsed_url = urllib.parse.urlparse(self.download_url)
+        url_path = urllib.parse.unquote(parsed_url.path)
+        original_filename = os.path.basename(url_path)
+        
+        if not original_filename:
+            is_frozen = getattr(sys, 'frozen', False)
+            ext = ".exe" if (is_frozen and sys.platform == "win32") else ".py"
+            original_filename = f"folder_compare{ext}"
+
+        name, ext = os.path.splitext(original_filename)
+        self.dest_path = os.path.join(tempfile.gettempdir(), f"{name}_v{self.target_version}_{uuid4().hex[:8]}{ext}")
             
         def worker_func():
             import urllib.request
@@ -2713,14 +2771,14 @@ class UpdateDownloadDialog(QDialog):
                             pct = int((downloaded / total_size) * 100) if total_size > 0 else 0
                             size_mb = f"{downloaded / 1024 / 1024:.1f} MB"
                             total_mb = f"{total_size / 1024 / 1024:.1f} MB" if total_size > 0 else ""
-                            QTimer.singleShot(0, lambda d=pct, text=f"Terunduh: {size_mb} / {total_mb}": self._update_progress(d, text))
+                            self.progress_updated.emit(pct, f"Terunduh: {size_mb} / {total_mb}")
                             
                 if not self._is_cancelled:
-                    QTimer.singleShot(0, lambda: self._finish_download(True))
+                    self.download_finished.emit(True)
                 else:
-                    QTimer.singleShot(0, lambda: self._finish_download(False))
+                    self.download_finished.emit(False)
             except Exception as e:
-                QTimer.singleShot(0, lambda err=str(e): self._handle_error(err))
+                self.download_error.emit(str(e))
 
         self.worker_thread = threading.Thread(target=worker_func, daemon=True)
         self.worker_thread.start()
@@ -3052,6 +3110,46 @@ class FolderCompareDeleteApp(QMainWindow):
         self.add_compare_folder_row()
         self.add_compare_folder_row()
 
+        QTimer.singleShot(500, self._check_update_success)
+
+    def _check_update_success(self) -> None:
+        try:
+            update_status_file = self.app_data_dir / "update_status.json"
+            if update_status_file.exists():
+                import json
+                with open(update_status_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                update_status_file.unlink()
+                
+                target_version = data.get("target_version")
+                changelog = data.get("changelog")
+                if target_version:
+                    def parse_version(v):
+                        return [int(x) if x.isdigit() else x for x in v.split('.')]
+                    
+                    if parse_version(APP_VERSION) >= parse_version(target_version):
+                        # Panggil modal dialog status yang sudah dimodifikasi atau baru dengan pesan sukses
+                        success_dialog = UpdateStatusDialog(self, APP_VERSION, data.get("old_version", ""), changelog, False)
+                        
+                        # Terapkan styling properti success
+                        success_dialog.card.setProperty("successMode", "true")
+                        success_dialog.icon_badge.setProperty("successMode", "true")
+                        if hasattr(success_dialog, "changelog_view"):
+                            success_dialog.changelog_view.setProperty("successMode", "true")
+                        if hasattr(success_dialog, "btn_tutup"):
+                            success_dialog.btn_tutup.setProperty("successMode", "true")
+                            
+                        # Muat ulang style QFrame untuk memicu successMode
+                        success_dialog.card.style().unpolish(success_dialog.card)
+                        success_dialog.card.style().polish(success_dialog.card)
+                        
+                        success_dialog.icon_badge.setText("✓")
+                        success_dialog.title_label.setText(f"Pembaruan Selesai!")
+                        success_dialog.summary_label.setText(f"Aplikasi Anda berhasil ditingkatkan ke versi {APP_VERSION}.")
+                        success_dialog.exec()
+        except Exception as e:
+            print(f"Failed to check update success: {e}")
+
     def closeEvent(self, event) -> None:
         # Trash internal dibuat persisten antar sesi, jadi saat aplikasi ditutup
         # kita hanya menyimpan indeksnya dan tidak membersihkan file-file trash.
@@ -3251,11 +3349,57 @@ class FolderCompareDeleteApp(QMainWindow):
                     changelog = data.get("body", "Tidak ada catatan rilis.")
                     assets = data.get("assets", [])
                     download_url = None
+                    import platform
+                    import sys
+                    import os
+                    system = platform.system().lower()
+                    is_frozen = getattr(sys, 'frozen', False)
+                    exe_path = sys.executable if is_frozen else ""
+                    
+                    is_installed = False
+                    if system == "windows" and is_frozen:
+                        lower_exe = exe_path.lower()
+                        if "program files" in lower_exe or "appdata\\local\\programs" in lower_exe:
+                            is_installed = True
+                    elif system == "linux" and is_frozen:
+                        if exe_path.startswith("/usr/") or exe_path.startswith("/opt/"):
+                            is_installed = True
+                    elif system == "darwin" and is_frozen:
+                        if "/Applications/" in exe_path:
+                            is_installed = True
+
+                    best_score = -1
                     for asset in assets:
                         name = asset.get("name", "").lower()
-                        if name.endswith(".exe") or name.endswith(".py"):
+                        score = -1
+                        
+                        if system == "windows":
+                            if is_installed and ("setup" in name or "install" in name or name.endswith(".msi")):
+                                score = 100
+                            elif not is_installed and ("portable" in name and name.endswith(".exe")):
+                                score = 100
+                            elif name.endswith(".exe"):
+                                score = 50
+                        elif system == "darwin":
+                            if not is_installed and ("portable" in name or name.endswith(".zip") or name.endswith(".tar.gz")):
+                                score = 100
+                            elif is_installed and (name.endswith(".dmg") or name.endswith(".pkg")):
+                                score = 100
+                            elif name.endswith(".dmg"):
+                                score = 50
+                        elif system == "linux":
+                            if not is_installed and ("appimage" in name or "portable" in name):
+                                score = 100
+                            elif is_installed and (name.endswith(".deb") or name.endswith(".rpm")):
+                                score = 100
+                            elif name.endswith(".appimage") or name.endswith(".tar.gz"):
+                                score = 50
+                        elif name.endswith(".py"):
+                            score = 10
+
+                        if score > best_score:
+                            best_score = score
                             download_url = asset.get("browser_download_url")
-                            break
                     
                 self.ui_queue.put(("update_check_done", {
                     "latest_version": latest_version,
@@ -5979,12 +6123,112 @@ class FolderCompareDeleteApp(QMainWindow):
                             downloaded_path = dialog.get_downloaded_path()
                             import subprocess
                             import sys
+                            import os
+                            import tempfile
+                            import platform
+                            
+                            # Simpan status niat pembaruan untuk ditampilkan modal sukses di sesi berikutnya
+                            update_status_file = self.app_data_dir / "update_status.json"
                             try:
-                                if downloaded_path.endswith('.exe'):
-                                    subprocess.Popen([downloaded_path], shell=True)
+                                import json
+                                with open(update_status_file, "w", encoding="utf-8") as f:
+                                    json.dump({
+                                        "target_version": latest,
+                                        "old_version": current,
+                                        "changelog": changelog
+                                    }, f)
+                            except Exception as e:
+                                print(f"Failed to write update status: {e}")
+
+                            try:
+                                system = platform.system().lower()
+                                lower_path = downloaded_path.lower()
+                                
+                                is_archive = lower_path.endswith(('.zip', '.tar.gz', '.tgz', '.rar'))
+                                if is_archive:
+                                    QMessageBox.information(
+                                        self, 
+                                        "Pembaruan Manual Diperlukan", 
+                                        f"File unduhan merupakan arsip ({os.path.basename(downloaded_path)}).\n\nSilakan ekstrak file ini dan ganti file aplikasi lama Anda secara manual."
+                                    )
+                                    # Buka folder tempat file diunduh
+                                    folder_dest = os.path.dirname(downloaded_path)
+                                    if system == "windows":
+                                        os.startfile(folder_dest)
+                                    elif system == "darwin":
+                                        subprocess.Popen(["open", folder_dest])
+                                    else:
+                                        subprocess.Popen(["xdg-open", folder_dest])
+                                    sys.exit(0)
+
+                                is_installer = False
+                                if system == "windows":
+                                    is_installer = any(x in lower_path for x in ['.msi', 'setup', 'install'])
+                                elif system == "darwin":
+                                    is_installer = any(x in lower_path for x in ['.dmg', '.pkg'])
+                                elif system == "linux":
+                                    is_installer = any(x in lower_path for x in ['.deb', '.rpm'])
+
+                                if is_installer:
+                                    if system == "darwin":
+                                        subprocess.Popen(["open", downloaded_path])
+                                    elif system == "linux":
+                                        # Gunakan software-center sebagai fallback jika xdg-open tidak tahu cara menangani deb
+                                        try:
+                                            subprocess.Popen(["xdg-open", downloaded_path])
+                                        except Exception:
+                                            subprocess.Popen(["gnome-software", "--local-filename", downloaded_path])
+                                    else:
+                                        if hasattr(os, 'startfile'):
+                                            os.startfile(downloaded_path)
+                                        else:
+                                            subprocess.Popen([downloaded_path], shell=True)
+                                    sys.exit(0)
                                 else:
-                                    subprocess.Popen([sys.executable, downloaded_path])
-                                sys.exit(0)
+                                    is_frozen = getattr(sys, 'frozen', False)
+                                    
+                                    # Fallback jika ternyata yang berjalan adalah AppImage native Linux yg dilarikan ke /tmp/ virtual disk
+                                    appimage_env = os.environ.get("APPIMAGE")
+                                    if system == "linux" and is_frozen and appimage_env and os.path.exists(appimage_env):
+                                        target_path = appimage_env
+                                    else:
+                                        target_path = sys.executable if is_frozen else os.path.abspath(sys.argv[0])
+                                    
+                                    if system == "windows":
+                                        bat_path = os.path.join(tempfile.gettempdir(), "updater.bat")
+                                        with open(bat_path, "w") as f:
+                                            f.write('@echo off\n')
+                                            f.write('timeout /t 2 /nobreak > NUL\n')
+                                            f.write(f'move /Y "{downloaded_path}" "{target_path}"\n')
+                                            if is_frozen:
+                                                f.write(f'start "" "{target_path}"\n')
+                                            else:
+                                                f.write(f'start "" "{sys.executable}" "{target_path}"\n')
+                                            f.write('del "%~f0"\n')
+                                        subprocess.Popen([bat_path], shell=True)
+                                    else:
+                                        sh_path = os.path.join(tempfile.gettempdir(), "updater.sh")
+                                        with open(sh_path, "w") as f:
+                                            f.write('#!/bin/bash\n')
+                                            f.write('sleep 2\n')
+                                            
+                                            if system == "darwin" and target_path.endswith("/MacOS/FolderCompare"):
+                                                # Overwrite seluruh .app bundle di parent folder jika Mac OS App Bundle
+                                                bundle_path = os.path.abspath(os.path.join(target_path, "../../.."))
+                                                f.write(f'mv -f "{downloaded_path}" "{bundle_path}"\n')
+                                                f.write(f'chmod -R +x "{bundle_path}"\n')
+                                                f.write(f'nohup open "{bundle_path}" >/dev/null 2>&1 &\n')
+                                            else:
+                                                f.write(f'mv -f "{downloaded_path}" "{target_path}"\n')
+                                                f.write(f'chmod +x "{target_path}"\n')
+                                                if is_frozen:
+                                                    f.write(f'nohup "{target_path}" >/dev/null 2>&1 &\n')
+                                                else:
+                                                    f.write(f'nohup "{sys.executable}" "{target_path}" >/dev/null 2>&1 &\n')
+                                            f.write('rm -f "$0"\n')
+                                        os.chmod(sh_path, 0o755)
+                                        subprocess.Popen([sh_path], shell=False, start_new_session=True)
+                                    sys.exit(0)
                             except Exception as e:
                                 QMessageBox.critical(self, "Gagal", f"Gagal menjalankan pembaruan:\n\n{e}")
                     else:

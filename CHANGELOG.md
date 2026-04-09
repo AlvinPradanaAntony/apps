@@ -10,6 +10,7 @@ Semua perubahan penting pada proyek ini akan dicatat dalam file ini.
 - Implementasi baru indikator visual loading menggunakan **PyQt WaitingSpinner** demi antarmuka pengguna yang jauh lebih halus.
 
 ### Diperbarui
+- Refaktor penanganan error (*exception handling*) dan flow download pada dialog pembaruan otomatis.
 - Konteks rekaman di *Undo Stack* dan *History* kini dioptimalkan lebih spesifik dengan melacak riwayat *affected file names*.
 - Perbaikan rilis GitHub Actions (CI/CD) mendukung injeksi direktori aset dan folder komponen eksternal.
 

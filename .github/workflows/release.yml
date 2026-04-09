@@ -25,6 +25,7 @@ jobs:
       - name: Build Portable EXE
         run: |
           pyinstaller --noconfirm --onefile --windowed --add-data "assets;assets" --add-data "components;components" --name "FolderCompare" folder_compare_delete_app.py
+          copy dist\FolderCompare.exe dist\FolderCompare-Windows-Portable.exe
 
       - name: Generate InnoSetup Script
         run: |
@@ -58,7 +59,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: FolderCompare-Windows-Portable.exe
-          path: dist/FolderCompare.exe
+          path: dist/FolderCompare-Windows-Portable.exe
 
       - name: Upload Windows Installer
         uses: actions/upload-artifact@v4
@@ -118,31 +119,31 @@ jobs:
           cp package/usr/share/applications/foldercompare.desktop AppDir/
           touch AppDir/foldercompare.svg
           # Use extracted AppImage tool to avoid FUSE issues on GitHub actions
-          ARCH=x86_64 ./squashfs-root/AppRun AppDir FolderCompare-Linux-x86_64.AppImage
+          ARCH=x86_64 ./squashfs-root/AppRun AppDir FolderCompare-Linux-Portable-x86_64.AppImage
 
       - name: Package tar.gz
         run: |
           cd dist
           mv FolderCompare FolderCompare-Linux
-          tar -czvf ../FolderCompare-Linux-amd64.tar.gz FolderCompare-Linux
+          tar -czvf ../FolderCompare-Linux-Portable-amd64.tar.gz FolderCompare-Linux
 
       - name: Upload .deb
         uses: actions/upload-artifact@v4
         with:
-          name: FolderCompare-Linux-amd64.deb
+          name: FolderCompare-Linux-Installer-amd64.deb
           path: foldercompare*.deb
 
       - name: Upload .AppImage
         uses: actions/upload-artifact@v4
         with:
-          name: FolderCompare-Linux-x86_64.AppImage
-          path: FolderCompare-Linux-x86_64.AppImage
+          name: FolderCompare-Linux-Portable-x86_64.AppImage
+          path: FolderCompare-Linux-Portable-x86_64.AppImage
 
       - name: Upload .tar.gz
         uses: actions/upload-artifact@v4
         with:
-          name: FolderCompare-Linux-amd64.tar.gz
-          path: FolderCompare-Linux-amd64.tar.gz
+          name: FolderCompare-Linux-Portable-amd64.tar.gz
+          path: FolderCompare-Linux-Portable-amd64.tar.gz
 
   build-macos:
     name: Build macOS (.app.tar.gz, .dmg)
@@ -166,24 +167,24 @@ jobs:
           mkdir -p dmg_root
           cp -r dist/FolderCompare.app dmg_root/
           ln -s /Applications dmg_root/Applications
-          hdiutil create -volname "FolderCompare" -srcfolder dmg_root -ov -format UDZO FolderCompare-macOS-universal.dmg
+          hdiutil create -volname "FolderCompare" -srcfolder dmg_root -ov -format UDZO FolderCompare-macOS-Installer-universal.dmg
 
       - name: Package tar.gz
         run: |
           cd dist
-          tar -czvf ../FolderCompare-macOS.app.tar.gz FolderCompare.app
+          tar -czvf ../FolderCompare-macOS-Portable.app.tar.gz FolderCompare.app
 
       - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
-          name: FolderCompare-macOS-universal.dmg
-          path: FolderCompare-macOS-universal.dmg
+          name: FolderCompare-macOS-Installer-universal.dmg
+          path: FolderCompare-macOS-Installer-universal.dmg
 
       - name: Upload tar.gz
         uses: actions/upload-artifact@v4
         with:
-          name: FolderCompare-macOS.app.tar.gz
-          path: FolderCompare-macOS.app.tar.gz
+          name: FolderCompare-macOS-Portable.app.tar.gz
+          path: FolderCompare-macOS-Portable.app.tar.gz
 
   release:
     name: Publish Release
