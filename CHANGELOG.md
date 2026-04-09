@@ -2,27 +2,38 @@
 
 Semua perubahan penting pada proyek ini akan dicatat dalam file ini.
 
+## [2.4.1] - 2026-04-09
+
+### Diperbarui
+
+- Menyempurnakan pemformatan tampilan log rilis pada antarmuka _UpdateStatusDialog_. Tampilan riwayat changelog (Markdown) kini mendukung fitur rentang teks buka-tutup (expand/collapse) menggunakan antarmuka interaktif pada blok tag `<details>`.
+- Melibatkan dukungan pembukaan _externals links_ secara dinamis via modul `QDesktopServices`.
+
 ## [2.4.0] - 2026-04-09
 
 ### Ditambahkan
+
 - Fitur **Bulk Sync (Sinkronisasi Massal)** pada file duplikat (hijau) yang mising atau kurang di direktori target, menyalin secara instan ke seluruh folder pembanding tanpa proses scan ulang.
 - Tombol konteks **Tampilkan di File Explorer** untuk mengakses file asli pada sistem operasi dengan cepat.
 - Implementasi baru indikator visual loading menggunakan **PyQt WaitingSpinner** demi antarmuka pengguna yang jauh lebih halus.
 
 ### Diperbarui
-- Refaktor penanganan error (*exception handling*) dan flow download pada dialog pembaruan otomatis.
-- Konteks rekaman di *Undo Stack* dan *History* kini dioptimalkan lebih spesifik dengan melacak riwayat *affected file names*.
+
+- Refaktor penanganan error (_exception handling_) dan flow download pada dialog pembaruan otomatis.
+- Konteks rekaman di _Undo Stack_ dan _History_ kini dioptimalkan lebih spesifik dengan melacak riwayat _affected file names_.
 - Perbaikan rilis GitHub Actions (CI/CD) mendukung injeksi direktori aset dan folder komponen eksternal.
 
 ## [2.3.0] - 2026-04-07
 
 ### Ditambahkan
+
 - Sistem **Pembaruan Otomatis (Auto Updater)** terintegrasi dengan GitHub API untuk mengecek dan mengunduh rilis langsung dari dalam aplikasi.
-- Tombol *Sync* baru di sidebar untuk memeriksa pembaruan (Status dialog & Loading progress bar animasi).
+- Tombol _Sync_ baru di sidebar untuk memeriksa pembaruan (Status dialog & Loading progress bar animasi).
 - Dukungan icon taskbar spesifik untuk Windows (`myappid`) serta `app_icon.png` bawaan untuk mencegah konflik icon dengan aplikasi python lain.
 - Layout dan visual Modernisasi untuk `FileDetailOverlayDialog` termasuk animasi hover tombol biru `PRIMARY`.
 
 ### Diperbarui
+
 - Penyesuaian pada kolom riwayat/history `("Nama File")` untuk menampilkan detail yang lebih kontekstual pada nama file.
 - Penyelesaian masalah status sinkronisasi tabel (label yang tersalin/terpindah) sehingga tak lagi memerlukan scan manual berulang kali.
 
@@ -34,13 +45,15 @@ Semua perubahan penting pada proyek ini akan dicatat dalam file ini.
 ## [2.2.0] - 2026-04-04
 
 ### Ditambahkan
+
 - Sistem **Trash Internal** khusus aplikasi. File yang dihapus bisa disimpan dalam direktori aman internal untuk menghindari penggunaan Recycle Bin Windows secara langsung.
-- Dialog interaktif `FileDetailOverlayDialog` saat Anda melakukan *double klik* pada file di tabel. Tampilan detail baru memuat informasi path, status sinkronisasi, ukuran dan opsi tindakan sinkronisasi (`copy` atau `move` ke folder pembanding).
-- Penyempurnaan UX *undo* dan pengelolaan navigasi menu secara persisten di aplikasi berbasis *State* (`trash_db.json`).
-- Tab menu baru khusus pengaturan dan pemantauan berkas yang berada dalam keranjang sampah (Trash) internal dengan total perhitungan kapasitas secara *real time*.
+- Dialog interaktif `FileDetailOverlayDialog` saat Anda melakukan _double klik_ pada file di tabel. Tampilan detail baru memuat informasi path, status sinkronisasi, ukuran dan opsi tindakan sinkronisasi (`copy` atau `move` ke folder pembanding).
+- Penyempurnaan UX _undo_ dan pengelolaan navigasi menu secara persisten di aplikasi berbasis _State_ (`trash_db.json`).
+- Tab menu baru khusus pengaturan dan pemantauan berkas yang berada dalam keranjang sampah (Trash) internal dengan total perhitungan kapasitas secara _real time_.
 
 ### Diperbarui
-- Refaktor mode Recycle bin menjadi *Trash Internal* yang lebih dapat disesuaikan dan di-undo tanpa campur tangan dari OS layer.
+
+- Refaktor mode Recycle bin menjadi _Trash Internal_ yang lebih dapat disesuaikan dan di-undo tanpa campur tangan dari OS layer.
 
 ## [2.1.0] - 2026-04-04
 

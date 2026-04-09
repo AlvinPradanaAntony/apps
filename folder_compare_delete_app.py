@@ -57,7 +57,7 @@ except ImportError as exc:
 
 
 APP_TITLE = "Folder Compare & Delete"
-APP_VERSION = "2.4.0"
+APP_VERSION = "2.4.1"
 APP_DEVELOPER = "Tonzdev"
 CHUNK_SIZE = 1024 * 1024  # 1 MB
 BG_COLOR = "#f4f7fb"
@@ -2165,11 +2165,55 @@ class UpdateStatusDialog(QDialog):
             card_layout.addWidget(detail_label)
 
             from PySide6.QtWidgets import QTextBrowser
+            from PySide6.QtGui import QDesktopServices
+            from PySide6.QtCore import QUrl
+            import re
+
             self.changelog_view = QTextBrowser()
-            self.changelog_view.setMarkdown(changelog)
-            self.changelog_view.setOpenExternalLinks(True)
             self.changelog_view.setObjectName("OverlayDetails")
-            self.changelog_view.setMinimumHeight(180)
+            self.changelog_view.setMinimumHeight(280)
+
+            # Ekstraksi tag <details> untuk mensimulasikan expand/collapse
+            self.is_details_expanded = False
+            self.changelog_main = changelog
+            self.changelog_summary = "Riwayat Versi"
+            self.changelog_details = ""
+            
+            detail_match = re.search(r'(.*?)<details>\s*<summary>(.*?)</summary>(.*?)</details>(.*)', changelog, re.DOTALL | re.IGNORECASE)
+            
+            if detail_match:
+                self.changelog_main = detail_match.group(1).strip()
+                summary_raw = detail_match.group(2).strip()
+                self.changelog_summary = re.sub(r'</?strong>', '', summary_raw, flags=re.IGNORECASE).strip()
+                self.changelog_details = detail_match.group(3).strip()
+                # Bersihkan tag br
+                self.changelog_details = re.sub(r'<br\s*/?>', '\n', self.changelog_details, flags=re.IGNORECASE)
+                
+                if detail_match.group(4):
+                    self.changelog_details += "\n\n" + detail_match.group(4).strip()
+
+            def render_changelog():
+                if detail_match:
+                    if self.is_details_expanded:
+                        md = f"{self.changelog_main}\n\n&nbsp;\n\n<a href='toggle_details' style='color:#1f5eff; text-decoration:none;'><b>▼ Sembunyikan {self.changelog_summary}</b></a>\n\n&nbsp;\n\n---\n\n{self.changelog_details}"
+                    else:
+                        md = f"{self.changelog_main}\n\n&nbsp;\n\n<a href='toggle_details' style='color:#1f5eff; text-decoration:none;'><b>▶ Tampilkan {self.changelog_summary}</b></a>\n\n&nbsp;"
+                else:
+                    md = self.changelog_main
+                
+                self.changelog_view.setMarkdown(md)
+
+            def on_anchor_clicked(url):
+                if url.toString() == "toggle_details":
+                    self.is_details_expanded = not self.is_details_expanded
+                    render_changelog()
+                else:
+                    QDesktopServices.openUrl(url)
+
+            self.changelog_view.setOpenLinks(False)
+            self.changelog_view.anchorClicked.connect(on_anchor_clicked)
+            
+            render_changelog()
             card_layout.addWidget(self.changelog_view, 1)
         else:
             card_layout.addStretch(1)
@@ -2267,6 +2311,11 @@ class UpdateStatusDialog(QDialog):
                 padding: 12px;
                 font: 9.5pt "Segoe UI";
                 selection-background-color: #dce8ff;
+            }}
+            QTextBrowser#OverlayDetails a {{
+                color: #1f5eff;
+                text-decoration: none;
+                font-weight: bold;
             }}
             QTextBrowser#OverlayDetails[successMode="true"] {{
                 background: #f4fff8;
